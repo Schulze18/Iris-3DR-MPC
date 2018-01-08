@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <world name="default">
+    <!-- A global light source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <!-- A ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- A testing model that includes the Velodyne sensor model -->
+    <model name="my_iris">
+      <include>
+	<!--Pasta do MOdelo-->
+        <uri>model://iris_with_standoffs</uri>
+      </include>
+
+      <!-- Attach the plugin to this model -->
+      <plugin name="iris_pred_control" filename="libiris_plugin.so"/>
+		<!--<velocity>2000.0</velocity>
+      </plugin>-->
+    </model>
+
+  </world>
+</sdf>
