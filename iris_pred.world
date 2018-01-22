@@ -19,8 +19,6 @@
 
       <!-- Attach the plugin to this model -->
       <plugin name="iris_pred_control" filename="libiris_plugin.so"/>
-		<!--<velocity>2000.0</velocity>
-      </plugin>-->
     </model>
 
   </world>
