@@ -5,15 +5,16 @@
 #include <gazebo/physics/physics.hh>
 #include <gazebo/transport/transport.hh>
 #include <gazebo/msgs/msgs.hh>
+#include <gazebo/common/common.hh>
+#include <gazebo/math/gzmath.hh>
 #include <thread>
 #include "ros/ros.h"
 #include "ros/callback_queue.h"
 #include "ros/subscribe_options.h"
-#include "std_msgs/Float32.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "std_msgs/Float32MultiArray.h"
-#include </home/rech/catkin_ws/devel/include/msg_vel_rotors/vel_motors.h>
+//Include Msgs Types
+#include <sensor_msgs/Imu.h> 
+#include <geometry_msgs/Quaternion.h>
+#include <geometry_msgs/Vector3.h>
 
 
 namespace gazebo
@@ -31,9 +32,10 @@ namespace gazebo
     /// \param[in] _sdf A pointer to the plugin's SDF element.
     public: virtual void Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
     {
+
     // Just output a message for now
     	std::cerr << "\nThe iris plugin is attach to model[" << _model->GetName() << "\n";
-	
+
 	// Store the model pointer for convenience.
 	this->model = _model;	
 
@@ -45,61 +47,64 @@ namespace gazebo
 	  ros::init(argc, argv, "gazebo_client", ros::init_options::NoSigintHandler);
 	}
 
-	// Create our ROS node. This acts in a similar manner to
-	// the Gazebo node
+	// Create our ROS node. This acts in a similar manner to the Gazebo node
 	this->rosNode.reset(new ros::NodeHandle("gazebo_client"));
 
-	// Create a named topic, and subscribe to it.
-	ros::SubscribeOptions so = ros::SubscribeOptions::create<msg_vel_rotors::vel_motors>(
+	//Create and subscribe to a topic with Quaternion type
+	ros::SubscribeOptions so = ros::SubscribeOptions::create<geometry_msgs::Quaternion>(
 	"/" + this->model->GetName() + "/vel_cmd",1,
 	 boost::bind(&IrisPlugin::OnRosMsg, this, _1), ros::VoidPtr(), &this->rosQueue);
-	
+
 	this->rosSub = this->rosNode->subscribe(so);
 
 	// Spin up the queue helper thread.
 	this->rosQueueThread = std::thread(std::bind(&IrisPlugin::QueueThread, this));
 
-/*
-	msg_vel_rotors::vel_motors testpub;
-	testpub.data = {1, 2, 3, 4};
-	//Test Publisher
-	pub_.publish(testpub); // use publisher
-	//ros::spinOnce();
-
-	ros::AdvertiseOptions ao = ros::AdvertiseOptions::create<msg_vel_rotors::vel_motors>(
-	"/teste_iris_pub", 1,
-	boost::bind(&GazeboRosLaser::LaserConnect, this),
-	boost::bind(&GazeboRosLaser::LaserDisconnect, this),
-	ros::VoidPtr(), NULL);
-	this->pub_ = this->rosnode_->advertise(ao);
-	this->pub_queue_ = this->pmq.addPub<sensor_msgs::LaserScan>();
-*/
+	//Create a topic to publish iris state
+	this->state_pub = this->rosNode->advertise<sensor_msgs::Imu>("iris_state", 100);
+	
+	//Configure Timer and callback function
+	this->pubTimer = this->rosNode->createTimer(ros::Duration(0.01), &IrisPlugin::pub_callback,this);
 	}
 
 
-
-	public: void SetVelocity(double vel[4])
+	public: void UpdateVelocity(double vel[4])
     {
-	//std::cerr <<vel[0]<< "\n";
-	//std::cout << "Funcao" << "\n"; 	
-	this->model->GetJoints()[2]->SetVelocity(0, 1*vel[0]);
-	this->model->GetJoints()[3]->SetVelocity(0, 1*vel[1]);
-	this->model->GetJoints()[4]->SetVelocity(0, -1*vel[2]);
-	this->model->GetJoints()[5]->SetVelocity(0, -1*vel[3]);
+	for (int i = 0; i < 4; i++){	
+		double cw = 1;		
+		if(i>1) cw = -1;
+		double vel_target = cw*vel[i]; 
+		
+		//Set the velocity of the rotors		
+		this->model->GetJoints()[i+2]->SetVelocity(0, vel_target);
+
+		//Calculate and apply force in rotors
+		double k = 0.00000298;
+		math::Vector3 thrust_force;
+		thrust_force.Set(0,0,k*vel[i]*vel[i]);	
+		this->model->GetLinks()[i+3]->AddRelativeForce(thrust_force);
+		
+		//Prints for debug
+		std::cout << "Teste Link: " << this->model->GetLinks()[i+3];			
+		std::cout << " Velocidade: " << vel_target ;
+		std::cout << " Forca: " << thrust_force << "\n";
+
+		physics::JointWrench wrench = this->model->GetJoints()[i+2]->GetForceTorque(0);
+		std::cout << "Force Joint: "<< wrench.body1Force << "\n";
+	}
     }
 
 
 	/// \brief Handle an incoming message from ROS
 	/// \param[in] _msg A float value that is used to set the velocity
 	/// of the Velodyne.
-	public: void OnRosMsg(const msg_vel_rotors::vel_motorsConstPtr& msg)
+	public: void OnRosMsg(const geometry_msgs::QuaternionConstPtr& msg)
 	{
-	std::cerr <<msg->data[0]<< "\n";
-	std::cerr <<msg->data[1]<< "\n";
-	std::cerr <<msg->data[2]<< "\n";
-	std::cerr <<msg->data[3]<< "\n";
-	double test[4] = { msg->data[0], msg->data[1], msg->data[2], msg->data[3]};
-	this->SetVelocity(test);
+
+	double test[4] = { msg->x, msg->y, msg->z, msg->w};
+	std::cerr << test << "\n";
+
+	this->UpdateVelocity(test);
 	}
 
 	/// \brief ROS helper function that processes messages
@@ -113,6 +118,54 @@ namespace gazebo
 	}
 
 
+	public: void pub_callback(const ros::TimerEvent& event)
+	{
+	//std::cout << "Test" << "\n";
+
+	//geometry_msgs::Vector3  position,velocity;
+	
+	//this->model->GetWorldPose(); ---- Retorna posição e os angulos do iris 
+			//this->model->GetWorldPose().pos
+			//this->model->GetWorldPose().rot
+	//this->model->GetWorldLinearVel(); ---- Retorna a velocidade linear (xp, yp,zp)
+	//this->model->GetWorldAngularVel(); ---- Retorna a veloidade angular 
+
+	math::Pose iris_pose;
+	math::Vector3 iris_linear_vel, iris_angular_vel;
+
+	iris_pose = this->model->GetWorldPose();
+	iris_linear_vel = this->model->GetWorldLinearVel();
+	iris_angular_vel = this->model->GetWorldAngularVel();
+	
+
+	//Create a variable with the same type of the topic
+	sensor_msgs::Imu iris_state;
+
+	iris_state.orientation_covariance[0] = iris_pose.pos[0];
+	iris_state.orientation_covariance[1] = iris_pose.pos[1];
+	iris_state.orientation_covariance[2] = iris_pose.pos[2];
+
+	iris_state.orientation_covariance[3] = iris_pose.rot.x;
+	iris_state.orientation_covariance[4] = iris_pose.rot.y;
+	iris_state.orientation_covariance[5] = iris_pose.rot.z;
+	
+	iris_state.angular_velocity_covariance[0] = iris_linear_vel[0];
+	iris_state.angular_velocity_covariance[1] = iris_linear_vel[1];
+	iris_state.angular_velocity_covariance[2] = iris_linear_vel[2];
+	
+	iris_state.angular_velocity_covariance[3] = iris_angular_vel[0];
+	iris_state.angular_velocity_covariance[4] = iris_angular_vel[1];
+	iris_state.angular_velocity_covariance[5] = iris_angular_vel[2];
+
+	//Pub iris_state
+	this->state_pub.publish(iris_state);
+
+	//Print the time just for Debug
+	ros::Time begin = ros::Time::now();
+	std::cout << begin << "\n";
+
+	}
+	
 	/// \brief A node used for transport
 	private: transport::NodePtr node;
 
@@ -127,9 +180,12 @@ namespace gazebo
 
 	/// \brief A node use for ROS transport
 	private: std::unique_ptr<ros::NodeHandle> rosNode;
-
+	
 	/// \brief A ROS subscriber
 	private: ros::Subscriber rosSub;
+
+	//Publisher of Iris States
+	private: ros::Publisher state_pub; 
 
 	/// \brief A ROS callbackqueue that helps process messages
 	private: ros::CallbackQueue rosQueue;
@@ -137,13 +193,8 @@ namespace gazebo
 	/// \brief A thread the keeps running the rosQueue
 	private: std::thread rosQueueThread;  
 
-
-	//Test Pubros::SubscribeOptions::create
-	//boost::shared_ptr<ros::NodeHandle> rosnode_;
-	//msg_vel_rotors::vel_motors joint_state_;
-	//ros::Publisher joint_state_publisher_;
-
-
+	//Publisher Timer
+	private: ros::Timer pubTimer;
 
 	};
 
