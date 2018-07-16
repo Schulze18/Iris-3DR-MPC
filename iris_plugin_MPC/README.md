@@ -2,16 +2,19 @@ A plugin to control a quadrotor (Iris 3DR) in Gazebo. A Model Predictive Control
 
 The plugin creates 3 topics:
 
-Publisher /gazebo_client/iris_state
+Publisher
+/gazebo_client/iris_state
 Description: Publish the information from Iris Quadcopter, the Pose in the "Orientation Covariance" array, and the angular and linear velocity in the "angular_velocity_covariance" array.
 Message Type: sensor_msgs/Imu
 
-Publisher /gazebo_client/vel_cmd
+Publisher
+/gazebo_client/vel_cmd
 Description: Publish the velocities calculated by the MPC and applied to the rotors.
 Message Type: geometry_msgs/Quaternion
 
 
-Subscriber /my_iris/iris_ref 
+Subscriber
+/my_iris/iris_ref 
 Description: Topic to pubslish the desired position of the quadrotor.
 Message Type: geometry_msgs/Point
 Pub command example: rostopic pub -- /my_iris/iris_ref geometry_msgs/Point 0 0 1
