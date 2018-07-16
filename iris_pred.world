@@ -10,10 +10,10 @@
       <uri>model://ground_plane</uri>
     </include>
 
-    <!-- A testing model that includes the Velodyne sensor model -->
+    <!-- A testing model that includes the Iris 3DR model -->
     <model name="my_iris">
       <include>
-	<!--Pasta do MOdelo-->
+	<!--Model Directory-->
         <uri>model://iris_with_standoffs</uri>
       </include>
 
