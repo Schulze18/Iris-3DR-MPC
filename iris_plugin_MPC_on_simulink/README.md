@@ -15,8 +15,8 @@ Pub command example: rostopic pub -- /my_iris/vel_cmd geometry_msgs/Quaternion 1
 
 
 After download all the files, go to the "iris_plugin_MPC_on_simulink" folder and do the following commands:
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:~/iris_plugin/build
-mkdir build
-cd build
-cmake ..
-make
+ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:~/iris_plugin/build
+ mkdir build
+ cd build
+ cmake ..
+ make
