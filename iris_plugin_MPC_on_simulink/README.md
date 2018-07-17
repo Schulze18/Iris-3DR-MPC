@@ -12,3 +12,11 @@ Subscriber
 Description: Topic to pubslish the desired velocity of the rotors.
 Message Type: geometry_msgs/Quaternion
 Pub command example: rostopic pub -- /my_iris/vel_cmd geometry_msgs/Quaternion 100 100 100 100
+
+
+After download all the files, go to the "iris_plugin_MPC_on_simulink" folder and do the following commands:
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:~/iris_plugin/build
+mkdir build
+cd build
+cmake ..
+make
